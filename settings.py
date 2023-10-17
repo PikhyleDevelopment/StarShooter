@@ -14,7 +14,8 @@ class Settings:
 
         # ------------ Ship settings ------------
         self.ship_image = 'images/SpaceShooterRedux/PNG/playerShip1_blue.png'
-        self.ship_speed = 2.5
+        self.ship_speed_x = 2.5
+        self.ship_speed_y = -2.0
 
         # ------------ Bullet settings ------------
         self.bullet_speed = 2.0

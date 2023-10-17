@@ -1,4 +1,5 @@
 import sys
+from random import randint
 
 import pygame
 
@@ -7,7 +8,6 @@ from bullet import Bullet, SuperBullet
 from settings import Settings
 from ship import Ship
 from star import Star
-from random import randint
 
 
 class AlienInvasion:
@@ -23,7 +23,7 @@ class AlienInvasion:
             self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
             self.settings.screen_width = self.screen.get_rect().width
             self.settings.screen_height = self.screen.get_rect().height
-            self.settings.ship_speed = 2
+            self.settings.ship_speed_x = 2
         else:
             self.screen = pygame.display.set_mode(
                 (self.settings.screen_width, self.settings.screen_height)
@@ -82,9 +82,13 @@ class AlienInvasion:
             self.ship.moving_right = True
         if event.key == pygame.K_LEFT or event.key == pygame.K_a:
             self.ship.moving_left = True
+        if event.key == pygame.K_UP or event.key == pygame.K_w:
+            self.ship.moving_up = True
+        if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+            self.ship.moving_down = True
         if event.key == pygame.K_SPACE:
             self._fire_bullet()
-        if event.key == pygame.K_DOWN:
+        if event.key == pygame.K_KP0:
             self._fire_super_bullet()
         if event.key == pygame.K_q:
             sys.exit()
@@ -94,6 +98,10 @@ class AlienInvasion:
             self.ship.moving_right = False
         if event.key == pygame.K_LEFT or event.key == pygame.K_a:
             self.ship.moving_left = False
+        if event.key == pygame.K_UP or event.key == pygame.K_w:
+            self.ship.moving_up = False
+        if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+            self.ship.moving_down = False
 
     def _fire_bullet(self):
         """Create a new bullet and add it to the bullets group."""
@@ -123,11 +131,36 @@ class AlienInvasion:
             if bullet.rect.bottom <= 0:
                 self.bullets.remove(bullet)
 
+        self._check_bullet_alien_collisions();
+
+    def _check_bullet_alien_collisions(self):
         # Check for any bullets that have hit aliens
         # if so, get rid of the bullet and the alien
         bullet_collisions = pygame.sprite.groupcollide(
             self.bullets, self.aliens, True, True
         )
+
+        if not self.aliens:
+            # Destroy existing bullets and create new fleet
+            self.bullets.empty()
+            self._create_fleet()
+
+    def _update_super_bullets(self):
+        self.super_bullets.update()
+        for super_bullet in self.super_bullets.copy():
+            if super_bullet.rect.bottom <= 0:
+                self.super_bullets.remove(super_bullet)
+
+        self._check_super_bullet_alien_collisions()
+
+    def _check_super_bullet_alien_collisions(self):
+        collisions = pygame.sprite.groupcollide(
+            self.super_bullets, self.aliens, True, True
+        )
+
+        if not self.aliens:
+            self.super_bullets.empty()
+            self._create_fleet()
 
     def _create_fleet(self):
         """Create the fleet of aliens."""
@@ -185,21 +218,15 @@ class AlienInvasion:
         self._check_fleet_edges()
         self.aliens.update()
 
+        # Look for alien - player ship collisions
+        if pygame.sprite.spritecollideany(self.ship, self.aliens):
+            print("Ship hit!!")
+
     def _fire_super_bullet(self):
         """Create a new bullet and add it to the bullets group."""
         if len(self.super_bullets) < self.settings.super_bullet_inventory:
             new_super_bullet = SuperBullet(self)
             self.super_bullets.add(new_super_bullet)
-
-    def _update_super_bullets(self):
-        self.super_bullets.update()
-        for super_bullet in self.super_bullets.copy():
-            if super_bullet.rect.bottom <= 0:
-                self.super_bullets.remove(super_bullet)
-
-        super_bullet_collisions = pygame.sprite.groupcollide(
-            self.super_bullets, self.aliens, True, True
-        )
 
 
 if __name__ == '__main__':
