@@ -2,9 +2,12 @@ import sys
 
 import pygame
 
+from alien import Alien
 from bullet import Bullet
 from settings import Settings
 from ship import Ship
+from star import Star
+from random import randint
 
 
 class AlienInvasion:
@@ -13,9 +16,9 @@ class AlienInvasion:
     def __init__(self):
         """Initializes the game, and create game resources"""
         pygame.init()
+        # Load in our settings
         self.settings = Settings()
-        self.bullets = pygame.sprite.Group()
-
+        # Determine and set screen settings
         if self.settings.full_screen:
             self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
             self.settings.screen_width = self.screen.get_rect().width
@@ -25,16 +28,26 @@ class AlienInvasion:
             self.screen = pygame.display.set_mode(
                 (self.settings.screen_width, self.settings.screen_height)
             )
+        # Initialize our game objects
+        self.stars = pygame.sprite.Group()
+        self._gen_starfield()
         self.ship = Ship(self)
+        self.bullets = pygame.sprite.Group()
+        self.aliens = pygame.sprite.Group()
+
+        self._create_fleet()
+
+        # Set window caption and background
         pygame.display.set_caption("Alien Invasion")
-        self.bg_image = pygame.image.load(self.settings.bg_image)
-        self.bg_image = pygame.transform.scale(
-            self.bg_image,
-            (
-                self.settings.screen_width,
-                self.settings.screen_height
-            )
-        )
+        # self.bg_color = self.settings.bg_color
+        # self.bg_image = pygame.image.load(self.settings.bg_image)
+        # self.bg_image = pygame.transform.scale(
+        #     self.bg_image,
+        #     (
+        #         self.settings.screen_width,
+        #         self.settings.screen_height
+        #     )
+        # )
 
     def run_game(self):
         """Start the main loop for the game"""
@@ -45,6 +58,8 @@ class AlienInvasion:
             self.ship.update()
             # Update the bullets
             self._update_bullets()
+            # Update the aliens
+            self._update_aliens()
             # Redraw the screen during each pass through the loop
             self._update_screen()
 
@@ -84,11 +99,14 @@ class AlienInvasion:
 
     def _update_screen(self):
         """Update images on the screen and flip to new screen"""
-        # self.screen.fill(self.settings.bg_color)
-        self.screen.blit(self.bg_image, (0, 0))
+        self.screen.fill(self.settings.bg_color)
+        self.stars.draw(self.screen)
+        # self.screen.blit(self.bg_image, (0, 0))
         self.ship.blitme()
         for bullet in self.bullets.sprites():
-            bullet.draw_bullet()
+            bullet.blitme()
+
+        self.aliens.draw(self.screen)
 
         # Make the most recently drawn screen visible
         pygame.display.flip()
@@ -98,6 +116,62 @@ class AlienInvasion:
         for bullet in self.bullets.copy():
             if bullet.rect.bottom <= 0:
                 self.bullets.remove(bullet)
+
+    def _create_fleet(self):
+        """Create the fleet of aliens."""
+        # Create an alien and find the number of aliens in a row.
+        # Spacing between each alien is equal to one alien width
+        alien = Alien(self)
+        alien_width, alien_height = alien.rect.size
+        available_space_x = self.settings.screen_width - (2 * alien_width)
+        number_aliens_x = available_space_x // (2 * alien_width)
+
+        # Determine the number of rows of aliens that can fit on the screen
+        ship_height = self.ship.rect.height
+        available_space_y = (self.settings.screen_height - (3 * alien_height) - ship_height)
+        number_rows = available_space_y // (2 * alien_height)
+
+        # Create the full fleet of aliens
+        for row_number in range(number_rows):
+            for alien_number in range(number_aliens_x):
+                self._create_alien(alien_number, row_number)
+
+    def _create_alien(self, alien_number, row_number):
+        alien = Alien(self)
+        alien_width, alien_height = alien.rect.size
+        alien.x = alien_width + 2 * alien_width * alien_number
+        alien.rect.x = alien.x
+        alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
+        self.aliens.add(alien)
+
+    def _check_fleet_edges(self):
+        """Respond appropriately if any aliens have reached an edge."""
+        for alien in self.aliens.sprites():
+            if alien.check_edges():
+                self._change_fleet_direction()
+                break
+
+    def _change_fleet_direction(self):
+        """Drop the entire fleet and change the fleet's direction."""
+        for alien in self.aliens.sprites():
+            alien.rect.y += self.settings.fleet_drop_speed
+        self.settings.fleet_direction *= -1
+
+    def _gen_starfield(self):
+        """Generates a starfield on the background."""
+        # Create a random number of stars and add them to self.stars group
+        for num in range(20, randint(30, 40)):
+            star = Star(self)
+            self.stars.add(star)
+
+    def _update_aliens(self):
+        """
+        Check if the fleet is at an edge,
+            then update the positions of all aliens in the fleet
+        :return: None
+        """
+        self._check_fleet_edges()
+        self.aliens.update()
 
 
 if __name__ == '__main__':

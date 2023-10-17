@@ -9,16 +9,29 @@ class Settings:
         # Otherwise, these settings are ignored. See alien_invasion.__init__()
         self.screen_width = 1920
         self.screen_height = 1080
-        self.bg_color = (32, 32, 32)
+        self.bg_color = (0, 0, 0)
         self.bg_image = 'images/SpaceShooterRedux/Backgrounds/darkPurple.png'
 
         # Ship settings
         self.ship_image = 'images/SpaceShooterRedux/PNG/playerShip1_blue.png'
-        self.ship_speed = 1.5
+        self.ship_speed = 2.5
 
         # Bullet settings
-        self.bullet_speed = 1.0
+        self.bullet_speed = 2.0
         self.bullet_width = 3
-        self.bullet_height = 15
+        self.bullet_height = 10
         self.bullet_color = (0, 255, 0)
+        self.bullet_image = 'images/SpaceShooterRedux/PNG/Lasers/laserGreen10.png'
         self.bullet_inventory = 5
+
+        # Alien settings
+        self.alien_image = 'images/SpaceShooterRedux/PNG/Enemies/enemyRed3.png'
+        self.alien_speed = 1.0
+        self.fleet_drop_speed = 10
+        # fleet_direction of 1 represents right; -1 represents left
+        self.fleet_direction = 1
+
+        # Effects settings
+        self.star1 = 'images/SpaceShooterRedux/PNG/Effects/star1.png'
+        self.star2 = 'images/SpaceShooterRedux/PNG/Effects/star2.png'
+        self.star3 = 'images/SpaceShooterRedux/PNG/Effects/star3.png'
