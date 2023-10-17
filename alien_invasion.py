@@ -3,7 +3,7 @@ import sys
 import pygame
 
 from alien import Alien
-from bullet import Bullet
+from bullet import Bullet, SuperBullet
 from settings import Settings
 from ship import Ship
 from star import Star
@@ -33,6 +33,7 @@ class AlienInvasion:
         self._gen_starfield()
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
+        self.super_bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
 
         self._create_fleet()
@@ -58,6 +59,7 @@ class AlienInvasion:
             self.ship.update()
             # Update the bullets
             self._update_bullets()
+            self._update_super_bullets()
             # Update the aliens
             self._update_aliens()
             # Redraw the screen during each pass through the loop
@@ -82,6 +84,8 @@ class AlienInvasion:
             self.ship.moving_left = True
         if event.key == pygame.K_SPACE:
             self._fire_bullet()
+        if event.key == pygame.K_DOWN:
+            self._fire_super_bullet()
         if event.key == pygame.K_q:
             sys.exit()
 
@@ -105,6 +109,8 @@ class AlienInvasion:
         self.ship.blitme()
         for bullet in self.bullets.sprites():
             bullet.blitme()
+        for super_bullet in self.super_bullets.sprites():
+            super_bullet.blitme()
 
         self.aliens.draw(self.screen)
 
@@ -116,6 +122,12 @@ class AlienInvasion:
         for bullet in self.bullets.copy():
             if bullet.rect.bottom <= 0:
                 self.bullets.remove(bullet)
+
+        # Check for any bullets that have hit aliens
+        # if so, get rid of the bullet and the alien
+        bullet_collisions = pygame.sprite.groupcollide(
+            self.bullets, self.aliens, True, True
+        )
 
     def _create_fleet(self):
         """Create the fleet of aliens."""
@@ -172,6 +184,22 @@ class AlienInvasion:
         """
         self._check_fleet_edges()
         self.aliens.update()
+
+    def _fire_super_bullet(self):
+        """Create a new bullet and add it to the bullets group."""
+        if len(self.super_bullets) < self.settings.super_bullet_inventory:
+            new_super_bullet = SuperBullet(self)
+            self.super_bullets.add(new_super_bullet)
+
+    def _update_super_bullets(self):
+        self.super_bullets.update()
+        for super_bullet in self.super_bullets.copy():
+            if super_bullet.rect.bottom <= 0:
+                self.super_bullets.remove(super_bullet)
+
+        super_bullet_collisions = pygame.sprite.groupcollide(
+            self.super_bullets, self.aliens, True, True
+        )
 
 
 if __name__ == '__main__':
