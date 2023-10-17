@@ -1,10 +1,13 @@
 import sys
 from random import randint
+from time import sleep
 
 import pygame
 
 from alien import Alien
 from bullet import Bullet, SuperBullet
+from button import Button
+from game_stats import GameStats
 from settings import Settings
 from ship import Ship
 from star import Star
@@ -18,6 +21,9 @@ class AlienInvasion:
         pygame.init()
         # Load in our settings
         self.settings = Settings()
+        # ------------ Time Settings ------------
+        self.TARGET_FPS = 60
+        self.clock = pygame.time.Clock()
         # Determine and set screen settings
         if self.settings.full_screen:
             self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
@@ -28,7 +34,9 @@ class AlienInvasion:
             self.screen = pygame.display.set_mode(
                 (self.settings.screen_width, self.settings.screen_height)
             )
+        pygame.display.set_caption("Alien Invasion")
         # Initialize our game objects
+        self.stats = GameStats(self)
         self.stars = pygame.sprite.Group()
         self._gen_starfield()
         self.ship = Ship(self)
@@ -38,8 +46,10 @@ class AlienInvasion:
 
         self._create_fleet()
 
-        # Set window caption and background
-        pygame.display.set_caption("Alien Invasion")
+        # Make a play button
+        self.play_button = Button(self, "Play")
+
+        # --------------- Background image settings ---------------- #
         # self.bg_color = self.settings.bg_color
         # self.bg_image = pygame.image.load(self.settings.bg_image)
         # self.bg_image = pygame.transform.scale(
@@ -53,15 +63,18 @@ class AlienInvasion:
     def run_game(self):
         """Start the main loop for the game"""
         while True:
+
             # Watch for keyboard and mouse events
             self._check_events()
-            # Update the ship
-            self.ship.update()
-            # Update the bullets
-            self._update_bullets()
-            self._update_super_bullets()
-            # Update the aliens
-            self._update_aliens()
+            if self.stats.game_active:
+                self.dt = self.clock.tick(60) * .001 * self.TARGET_FPS
+                # Update the ship
+                self.ship.update(self.dt)
+                # Update the bullets
+                self._update_bullets(self.dt)
+                self._update_super_bullets(self.dt)
+                # Update the aliens
+                self._update_aliens(self.dt)
             # Redraw the screen during each pass through the loop
             self._update_screen()
 
@@ -74,6 +87,23 @@ class AlienInvasion:
                 self._check_keydown_events(event)
             elif event.type == pygame.KEYUP:
                 self._check_keyup_events(event)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                self._check_play_button(mouse_pos)
+
+    def _check_play_button(self, mouse_pos):
+        """Start a new game when the player clicks Play"""
+        button_clicked = self.play_button.rect.collidepoint(mouse_pos)
+        if button_clicked and not self.stats.game_active:
+            # Reset game settings
+            self.settings.initialize_dynamic_settings()
+            # Reset the game stats
+            self.stats.reset_stats()
+            self.stats.game_active = True
+
+            self._reset_entities()
+            # Hide the mouse cursor.
+            pygame.mouse.set_visible(False)
 
     def _check_keydown_events(self, event):
         """Respond to key presses"""
@@ -122,11 +152,15 @@ class AlienInvasion:
 
         self.aliens.draw(self.screen)
 
+        # Draw play button if game is inactive
+        if not self.stats.game_active:
+            self.play_button.draw_button()
+
         # Make the most recently drawn screen visible
         pygame.display.flip()
 
-    def _update_bullets(self):
-        self.bullets.update()
+    def _update_bullets(self, dt):
+        self.bullets.update(dt)
         for bullet in self.bullets.copy():
             if bullet.rect.bottom <= 0:
                 self.bullets.remove(bullet)
@@ -139,14 +173,14 @@ class AlienInvasion:
         bullet_collisions = pygame.sprite.groupcollide(
             self.bullets, self.aliens, True, True
         )
+        # print(f"DEBUG: self.aliens: ${self.aliens}")
 
         if not self.aliens:
-            # Destroy existing bullets and create new fleet
-            self.bullets.empty()
-            self._create_fleet()
+            self.settings.increase_speed()
+            self._reset_entities()
 
-    def _update_super_bullets(self):
-        self.super_bullets.update()
+    def _update_super_bullets(self, dt):
+        self.super_bullets.update(dt)
         for super_bullet in self.super_bullets.copy():
             if super_bullet.rect.bottom <= 0:
                 self.super_bullets.remove(super_bullet)
@@ -159,8 +193,8 @@ class AlienInvasion:
         )
 
         if not self.aliens:
-            self.super_bullets.empty()
-            self._create_fleet()
+            self.settings.increase_speed()
+            self._reset_entities()
 
     def _create_fleet(self):
         """Create the fleet of aliens."""
@@ -200,6 +234,7 @@ class AlienInvasion:
         """Drop the entire fleet and change the fleet's direction."""
         for alien in self.aliens.sprites():
             alien.rect.y += self.settings.fleet_drop_speed
+
         self.settings.fleet_direction *= -1
 
     def _gen_starfield(self):
@@ -209,24 +244,69 @@ class AlienInvasion:
             star = Star(self)
             self.stars.add(star)
 
-    def _update_aliens(self):
+    def _update_aliens(self, dt):
         """
         Check if the fleet is at an edge,
             then update the positions of all aliens in the fleet
         :return: None
         """
         self._check_fleet_edges()
-        self.aliens.update()
+        self.aliens.update(dt)
 
         # Look for alien - player ship collisions
         if pygame.sprite.spritecollideany(self.ship, self.aliens):
-            print("Ship hit!!")
+            self._ship_hit()
+
+        # Look for aliens hitting the bottom of the screen
+        self._check_aliens_bottom()
+
+    def _check_aliens_bottom(self):
+        """Check to see if any aliens have reached the bottom of the screen"""
+        screen_rect = self.screen.get_rect()
+        for alien in self.aliens.sprites():
+            if alien.rect.bottom >= screen_rect.bottom:
+                # Treat this the same as the alien hitting the player ship
+                self._ship_hit()
+                break
+
+    def _ship_hit(self):
+        """Respond to the ship being hit by an alien"""
+        if self.stats.ships_left > 0:
+            # Decrement ships_left
+            self.stats.ships_left -= 1
+
+            self._reset_entities()
+            # Pause
+            sleep(0.5)
+        else:
+            self.stats.game_active = False
+            pygame.mouse.set_visible(True)
 
     def _fire_super_bullet(self):
         """Create a new bullet and add it to the bullets group."""
         if len(self.super_bullets) < self.settings.super_bullet_inventory:
             new_super_bullet = SuperBullet(self)
             self.super_bullets.add(new_super_bullet)
+
+    def _reset_entities(self):
+        print("DEBUG: _reset_entities()")
+        # Get rid of any remaining aliens and bullets
+        self.aliens.empty()
+        self.bullets.empty()
+        self.super_bullets.empty()
+        if self.settings.DEBUG:
+            print(f"""
+============================ DEBUG: Entity Speeds ============================
+                       Ship X Speed : {self.settings.ship_speed_x}
+                       Ship Y Speed : {self.settings.ship_speed_y}
+                       Bullet Speed : {self.settings.bullet_speed}
+                 Super Bullet Speed : {self.settings.super_bullet_speed}
+                        Alien Speed : {self.settings.alien_speed}
+                    """)
+
+        # Create a new fleet and center the ship
+        self._create_fleet()
+        self.ship.center_ship()
 
 
 if __name__ == '__main__':

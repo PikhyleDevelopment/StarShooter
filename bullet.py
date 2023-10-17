@@ -20,14 +20,14 @@ class Bullet(Sprite):
         self.rect.midtop = ai_game.ship.rect.midtop
         self.rect.width = self.settings.bullet_width
         self.rect.height = self.settings.bullet_height
-        print(f"Bullet's rect: ${self.rect}")
+
         # Store the bullet's position as a decimal value
         self.y = float(self.rect.y)
 
-    def update(self):
+    def update(self, dt):
         """Move the bullet up the screen."""
         # Update the decimal position of the bullet
-        self.y -= self.settings.bullet_speed
+        self.y -= self.settings.bullet_speed * dt
         # Update the rect position
         self.rect.y = self.y
 
@@ -60,14 +60,13 @@ class SuperBullet(Sprite):
         self.rect.midtop = ai_game.ship.rect.midtop
         self.rect.width = self.settings.super_bullet_width
         self.rect.height = self.settings.super_bullet_height
-        print(f"Super bullet rect: ${self.rect}")
         # Store the bullet's position as a decimal value
         self.y = float(self.rect.y)
 
-    def update(self):
+    def update(self, dt):
         """Move the bullet up the screen."""
         # Update the decimal position of the bullet
-        self.y -= self.settings.super_bullet_speed
+        self.y -= self.settings.super_bullet_speed * dt
         # Update the rect position
         self.rect.y = self.y
 
